@@ -36,8 +36,15 @@ class Server {
 }
 
 Future<void> main(List<String> args) async {
-  Server(8080);
+  final server = Server(8080);
 
   final client = MsgConnectionClientWebSocket(const MsgDecoder());
+  client.stream.listen(client.handleMsg);
   final hs = await client.reconnect('ws://127.0.0.1:8080');
+  await server.connections.first.sink.close();
+  await Future.delayed(Duration(seconds: 1));
+  await client.reconnect('ws://127.0.0.1:8080');
+  await client.reconnect('ws://127.0.0.1:8080');
+  await client.reconnect('ws://127.0.0.1:8080');
+  await client.reconnect('ws://127.0.0.1:8080');
 }

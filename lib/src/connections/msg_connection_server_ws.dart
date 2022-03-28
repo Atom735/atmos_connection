@@ -55,7 +55,7 @@ class MsgConnectionServerWebSocket extends MsgConnectionBase {
   @override
   void handleMsg(IMsg msg) {
     if (msg is MsgHandshake) {
-      send(MsgHandshake(id, version));
+      send(MsgHandshake(msg.id, version));
       handshaked = true;
     }
     super.handleMsg(msg);

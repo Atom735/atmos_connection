@@ -18,7 +18,7 @@ abstract class IMsgConnection implements VirtualChannel<IMsg> {
   int get version;
 
   /// Generate new id for msg, odds for server side, and evens for client side
-  int get mewMsgId;
+  int get newMsgId;
 
   ConnectionTransferType get transferType;
   set transferType(ConnectionTransferType value);

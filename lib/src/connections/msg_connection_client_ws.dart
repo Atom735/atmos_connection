@@ -15,7 +15,9 @@ class MsgConnectionClientWebSocket extends MsgConnectionBase
     implements IMsgConnectionClient {
   MsgConnectionClientWebSocket(this.decoder) : super(2);
 
-  StreamChannel<IMsg>? channel;
+  StreamChannel<IMsg>? ws;
+
+  final controller = StreamChannelController<IMsg>(sync: true);
 
   @override
   String adress = '';
@@ -30,13 +32,13 @@ class MsgConnectionClientWebSocket extends MsgConnectionBase
   final MsgDecoder decoder;
 
   @override
-  void send(IMsg msg) => channel?.sink.add(msg);
+  void send(IMsg msg) => sink.add(msg);
 
   @override
-  StreamSink<IMsg> get sink => channel!.sink;
+  StreamSink<IMsg> get sink => controller.local.sink;
 
   @override
-  Stream<IMsg> get stream => channel!.stream;
+  Stream<IMsg> get stream => controller.local.stream;
 
   @override
   int get version => 1;
@@ -49,18 +51,30 @@ class MsgConnectionClientWebSocket extends MsgConnectionBase
 
   @override
   Future<MsgHandshake> reconnect(String adress, [Uint8List? key]) async {
+    await ws?.sink.close();
     this.adress = adress;
-    channel = WebSocketChannel.connect(Uri.parse(adress))
+    statusCode = ConnectionStatus.connecting;
+    statusErrorMsg = '';
+    _suController.sink.add(this);
+    ws = WebSocketChannel.connect(Uri.parse(adress))
         .transform(const MsgStreamChanngelDebugTransformer<Object?>(
                 'Client connection RAW', LoggerConsole())
             .transformer)
         .transform(MsgStreamChanngelTransformer(decoder).transformerJson)
         .transform(const MsgStreamChanngelDebugTransformer<IMsg>(
                 'Client connection', LoggerConsole())
-            .transformer)
-      ..stream.listen(handleMsg);
-    final msg = await request(MsgHandshake(id, version));
+            .transformer);
+    // ..stream.listen(handleMsg, onError: (e) {
+    //   statusCode = ConnectionStatus.error;
+    //   statusErrorMsg = e.toString();
+    //   _suController.sink.add(this);
+    // });
+    controller.foreign.pipe(ws!);
+    final msg = await request(MsgHandshake(newMsgId, version));
     if (msg is MsgHandshake) {
+      statusCode = ConnectionStatus.connected;
+      statusErrorMsg = '';
+      _suController.sink.add(this);
       return msg;
     }
     dispose();
@@ -74,5 +88,16 @@ class MsgConnectionClientWebSocket extends MsgConnectionBase
   String statusErrorMsg = '';
 
   @override
-  Stream<IMsgConnectionClient> get statusUpdates => throw UnimplementedError();
+  Stream<IMsgConnectionClient> get statusUpdates => _suController.stream;
+
+  final _suController =
+      StreamController<IMsgConnectionClient>.broadcast(sync: true);
+
+  @override
+  void dispose() {
+    ws?.sink.close();
+    controller.local.sink.close();
+    _suController.close();
+    super.dispose();
+  }
 }

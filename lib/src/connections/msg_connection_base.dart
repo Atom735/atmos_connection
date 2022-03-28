@@ -20,7 +20,7 @@ abstract class MsgConnectionBase extends StreamChannelMixin<IMsg>
   MsgDecoder get decoder;
 
   @override
-  int get mewMsgId => _msgId += 2;
+  int get newMsgId => _msgId += 2;
 
   final requestsCompleters = <int, Completer<IMsg>>{};
   @override
@@ -65,6 +65,9 @@ abstract class MsgConnectionBase extends StreamChannelMixin<IMsg>
     } else if (msg is MsgDone) {
       requestsCompleters.remove(msg.id)?.complete(msg);
       streamControllers.remove(msg.id)?.close();
+    } else {
+      requestsCompleters.remove(msg.id)?.complete(msg);
+      streamControllers[msg.id]?.add(msg);
     }
   }
 }
